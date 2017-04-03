@@ -1,8 +1,36 @@
-version: "2"
+version: "3"
 
 services:
+  minecraft:
+    build:
+      context: minecraft
+    env_file: minecraft/.env
+    restart: always
+    volumes:
+      - minecraft:/mnt/minecraft
+
   overviewer:
     build: overviewer
+    env_file: overviewer/.env
+    restart: always
+    depends_on:
+      - minecraft
     volumes:
-      - ./minecraft:/minecraft:ro
-      - ./mcmap:/mcmap
+      - ./overviewer/config:/config
+      - minecraft:/mnt/minecraft:ro
+      - map:/mnt/map
+
+  caddy:
+    image: zzrot/alpine-caddy
+    depends_on:
+      - overviewer
+    ports:
+      - "8080:80"
+    volumes:
+      - map:/var/www/html:ro
+      # - caddy/Caddyfile:/etc/Caddyfile
+      - ./caddy/ssl:/root/.caddy
+
+volumes:
+  minecraft:
+  map:

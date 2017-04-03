@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Download the contents of the Minecraft folder directly into /mnt/minecraft
+wget -cLNr --no-host-directories --cut-dirs=1 \
+     -P /mnt/minecraft \
+     --user="${MC_FTP_USER}" \
+     --password="${MC_FTP_PASS}" \
+     "ftp://${MC_FTP_HOST}/${MC_FTP_DIR}"

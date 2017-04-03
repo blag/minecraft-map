@@ -1,34 +1,34 @@
 FROM ubuntu:16.04
 MAINTAINER blag
 
-RUN echo "deb http://overviewer.org/debian ./" > /etc/apt/sources.list
-RUN wget -O - http://overviewer.org/debian/overviewer.gpg.asc | apt-key add -
+RUN echo "deb http://us.archive.ubuntu.com/ubuntu xenial main universe multiverse restricted" >> /etc/apt/sources.list.d/us.list
+RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu xenial main universe multiverse restricted" >> /etc/apt/sources.list.d/us.list
+
+RUN echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates main universe multiverse restricted" >> /etc/apt/sources.list.d/updates.list
+RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu/ xenial-updates main universe multiverse restricted" >> /etc/apt/sources.list.d/updates.list
+
+RUN echo "deb http://security.archive.ubuntu.com/ubuntu/ xenial-security main universe multiverse restricted" >> /etc/apt/sources.list.d/security.list
+RUN echo "deb-src http://security.archive.ubuntu.com/ubuntu/ xenial-security main universe multiverse restricted" >> /etc/apt/sources.list.d/security.list
 
 RUN apt update
-RUN apt install -y --force-yes minecraft-overviewer
+RUN apt upgrade -y
+RUN apt install -y apt-transport-https apt-utils cron gettext-base lsb-release wget
 
-RUN mkdir -p /home/overviewer
-RUN chown -R 1:1 /home/overviewer
-ENV HOME=/home/overviewer
-USER 1:1
-ENTRYPOINT ["/bin/bash", "-c", "overviewer.py --config=/minecraft/overviewer.cfg; overviewer.py --config=/minecraft/overviewer.cfg --genpoi"]
+# Install Overviewer
+RUN echo "deb https://overviewer.org/debian ./" > /etc/apt/sources.list.d/overviewer.list
+RUN wget -q -O - https://overviewer.org/debian/overviewer.gpg.asc | apt-key add -
 
-# ADD crontab /etc/cron.d/minecraft-overviewer
+RUN apt update
+RUN apt install -y minecraft-overviewer
 
-# RUN chmod 664 /etc/cron.d/minecraft-overviewer
+# Add the script to run Overviewer
+COPY run_overviewer /
+RUN chmod +x /run_overviewer
 
-# RUN touch /var/log/cron.log
+# Configure the cron job to run the overviewer script
+RUN echo "15,30,45,60 * * * * root /run_overviewer >> /var/log/cron.log 2>&1" >> /etc/cron.d/run-overviewer
+RUN chmod +x /etc/cron.d/run-overviewer
 
-# CMD cron && tail -f /var/log/cron.log
+RUN touch /var/log/cron.log
 
-# RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/sources.list && \
-#     echo "deb http://overviewer.org/debian ./" >> /etc/apt/sources.list && \
-#     apt-get update
-
-# RUN apt-get install -y --force-yes minecraft-overviewer
-
-# ADD https://s3.amazonaws.com/Minecraft.Download/versions/1.11.2/1.11.2.jar /home/daemon/.minecraft/versions/1.11.2/
-# RUN chown -R 1:1 /home/daemon
-# ENV HOME=/home/daemon
-# USER 1:1
-# ENTRYPOINT ["overviewer.py"]
+CMD cron && tail -f /var/log/cron.log

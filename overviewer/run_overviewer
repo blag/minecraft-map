@@ -1,0 +1,14 @@
+#!/bin/sh
+
+mkdir -p "${HOME}/.minecraft/versions/${MC_VERSION}"
+
+if [ ! -f "${HOME}/.minecraft/versions/${MC_VERSION}/${MC_VERSION}.jar" ]; then
+    wget -qL "https://s3.amazonaws.com/Minecraft.Download/versions/${MC_VERSION}/${MC_VERSION}.jar" \
+         -P "${HOME}/.minecraft/versions/${MC_VERSION}/"
+fi
+
+envsubst '${GOOGLE_MAPS_API_KEY}' \
+    < /config/assets/index.html.template \
+    > /config/assets/index.html
+
+overviewer.py --config=/config/overviewer_config.py
