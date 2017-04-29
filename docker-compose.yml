@@ -20,17 +20,38 @@ services:
       - minecraft:/mnt/minecraft:ro
       - map:/mnt/map
 
-  caddy:
-    image: zzrot/alpine-caddy
+  nginx:
+    build:
+      context: nginx
+    env_file: nginx/.env
+    restart: always
     depends_on:
       - overviewer
     ports:
-      - "8080:80"
+      - "8080:8080"
+      - "443:443"
+    links:
+      - letsencrypt
     volumes:
-      - map:/var/www/html:ro
-      # - caddy/Caddyfile:/etc/Caddyfile
-      - ./caddy/ssl:/root/.caddy
+      - map:/sites/map:ro
+      - letsencrypt:/etc/letsencrypt:ro
+
+  letsencrypt:
+    image: quay.io/letsencrypt/letsencrypt:latest
+    env_file: nginx/.env
+    environment:
+      - TERM=xterm
+    command: bash -c "sleep 6 && certbot certonly --standalone -d ${DOMAIN_NAME} --text --agree-tos --email ${CONTACT_EMAIL} --server https://acme-v01.api.letsencrypt.org/directory --rsa-key-size 4096 --verbose --renew-by-default --standalone-supported-challenges http-01"
+    entrypoint: ""
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - letsencrypt_data:/var/lib/letsencrypt
 
 volumes:
   minecraft:
   map:
+  letsencrypt:
+  letsencrypt_data:

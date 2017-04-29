@@ -1,0 +1,67 @@
+server {
+    listen ${PORT_HTTP};
+    server_name ${DOMAIN_NAME} ${OTHER_HOSTNAMES};
+
+    location /.well-known/acme-challenge {
+        proxy_pass http://letsencrypt:1086;
+        proxy_set_header Host            $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        # root /tmp/letsencrypt/www;
+    }
+
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen ${PORT_HTTPS};
+    server_name ${DOMAIN_NAME};
+
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
+    ssl_session_timeout 5m;
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+    ssl_prefer_server_ciphers on;
+
+    ssl_session_cache shared:SSL:10m;
+    # generate dhparams.pem: openssl dhparam -out dhparam.pem 4096
+    ssl_dhparam /etc/ssl/private/dhparams.pem;
+
+    location /.well-known/acme-challenge {
+        proxy_pass http://letsencrypt:1086;
+        proxy_set_header Host            $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        # root /tmp/letsencrypt/www;
+    }
+
+    # From http://stackoverflow.com/a/33440489/6461688
+    # We're trying to make an "empty" request to $host be an internal redirect
+    # to index.html without exposing $host/index.html to the outside world
+    # So first off, tell nginx to load it if no other file exactly matches the
+    # empty request, and call it "=404"
+    # = means exact location
+    location = / {
+        try_files /sites/map/index.html =404;
+    }
+
+    # Next, disable $host/index and $host/index.html as a duplicate
+    location = /index {
+        return 404;
+    }
+
+    location = /index.html {
+        return 404;
+    }
+
+    # Finally, try to load the uri as normal, and if it doesn't work, try to
+    # load the index, and if that doesn't match, then load the 404 page
+    location / {
+        root /sites/map;
+        try_files $uri =404;
+    }
+}
