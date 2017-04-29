@@ -1,34 +1,29 @@
-FROM ubuntu:16.04
+FROM jfloff/alpine-python:2.7
 MAINTAINER blag
 
-RUN echo "deb http://us.archive.ubuntu.com/ubuntu xenial main universe multiverse restricted" >> /etc/apt/sources.list.d/us.list
-RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu xenial main universe multiverse restricted" >> /etc/apt/sources.list.d/us.list
+RUN echo \
+ && echo "http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION}/main" > /etc/apk/repositories \
+ && echo "http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION}/community" >> /etc/apk/repositories
 
-RUN echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates main universe multiverse restricted" >> /etc/apt/sources.list.d/updates.list
-RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu/ xenial-updates main universe multiverse restricted" >> /etc/apt/sources.list.d/updates.list
+RUN apk add --update ca-certificates gettext openssl py-imaging py-numpy tar wget && rm -rf /var/cache/apk/*
 
-RUN echo "deb http://security.archive.ubuntu.com/ubuntu/ xenial-security main universe multiverse restricted" >> /etc/apt/sources.list.d/security.list
-RUN echo "deb-src http://security.archive.ubuntu.com/ubuntu/ xenial-security main universe multiverse restricted" >> /etc/apt/sources.list.d/security.list
+RUN mkdir /src
 
-RUN apt update
-RUN apt upgrade -y
-RUN apt install -y apt-transport-https apt-utils cron gettext-base lsb-release wget
+# Download the source
+RUN wget -q https://github.com/overviewer/Minecraft-Overviewer/tarball/master \
+         -O /src/Minecraft-Overviewer.tar.gz
 
-# Install Overviewer
-RUN echo "deb https://overviewer.org/debian ./" > /etc/apt/sources.list.d/overviewer.list
-RUN wget -q -O - https://overviewer.org/debian/overviewer.gpg.asc | apt-key add -
+WORKDIR /src
 
-RUN apt update
-RUN apt install -y minecraft-overviewer
+RUN tar -xzvf Minecraft-Overviewer.tar.gz
 
-# Add the script to run Overviewer
-COPY run_overviewer /
-RUN chmod +x /run_overviewer
+RUN ln -s $(ls | grep -v 'Minecraft-Overviewer.tar.gz') Minecraft-Overviewer
 
-# Configure the cron job to run the overviewer script
-RUN echo "15,30,45,60 * * * * root /run_overviewer >> /var/log/cron.log 2>&1" >> /etc/cron.d/run-overviewer
-RUN chmod +x /etc/cron.d/run-overviewer
+# This isn't working yet
+RUN (cd Minecraft-Overviewer; python2 setup.py build)
+RUN (cd Minecraft-Overviewer; python2 setup.py install)
 
-RUN touch /var/log/cron.log
+COPY run_overviewer /etc/periodic/15min/
+RUN chmod +x /etc/periodic/15min/run_overviewer
 
-CMD cron && tail -f /var/log/cron.log
+CMD crond -l 2 -f
